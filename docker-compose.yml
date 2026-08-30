@@ -1,0 +1,98 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.11.0
+    container_name: open-webui
+    restart: always
+    ports:
+      - "3000:8080"
+    volumes:
+      - ./openwebui:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - WEB_LOADER_ENGINE=external
+      - EXTERNAL_WEB_LOADER_URL=http://jina-adapter:8091
+      - VIEW_FILE_DEFAULT_MAX_CHARS=100000
+      - VIEW_FILE_MAX_CHARS=100000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  openai-edge-tts:
+    image: travisvn/openai-edge-tts:latest
+    container_name: openai-edge-tts
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: always
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080
+
+  jina-reader:
+    image: ghcr.io/jina-ai/reader:oss
+    container_name: jina-reader
+    ports:
+      - "8090:8081"
+    restart: unless-stopped
+
+  jina-adapter:
+    build: ./jina-adapter
+    container_name: jina-adapter
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+
+  open-terminal:
+    image: ghcr.io/open-webui/open-terminal:slim
+    container_name: open-terminal
+    restart: unless-stopped
+    environment:
+      - OPEN_TERMINAL_API_KEY=${OPEN_TERMINAL_API_KEY}
+      - OPEN_TERMINAL_FILE_BROWSER_ROOT=/workspace
+    volumes:
+      - /home/obi/Documents/dir_openwebui:/workspace
+
+  scrapling:
+    image: ghcr.io/d4vinci/scrapling:latest
+    container_name: scrapling
+    restart: unless-stopped
+    command:
+      - mcp
+      - --http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --auth-token
+      - ${SCRAPLING_MCP_AUTH_TOKEN}
+
+  indeepcleaning-dev:
+    image: node:20-slim
+    container_name: indeepcleaning-dev
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - /home/obi/Documents/dir_openwebui:/workspace
+    working_dir: /workspace/indeepcleaningid
+    command: npm run dev -- -H 0.0.0.0
+
+  hostinger-mcp:
+    build: ./hostinger-mcp
+    container_name: hostinger-mcp
+    restart: unless-stopped
+    environment:
+      - HOSTINGER_API_TOKEN=${HOSTINGER_API_TOKEN}
+    command:
+      - hostinger-api-mcp
+      - --http
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8100"
